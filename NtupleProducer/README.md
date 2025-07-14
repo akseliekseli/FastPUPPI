@@ -9,7 +9,7 @@ On top of this, the package contains several utilities and scripts for quick per
 
 
 ## CMSSW area setup 
-```
+```bash
 cmsrel CMSSW_14_2_0_pre2
 cd CMSSW_14_2_0_pre2/src
 cmsenv
@@ -21,12 +21,72 @@ git cms-addpkg L1Trigger/TrackTrigger
 git cms-addpkg SimTracker/TrackTriggerAssociation
 git cms-addpkg L1Trigger/Phase2L1ParticleFlow
 git cms-checkout-topic -u p2l1pfp:L1PF_14_2_X
+# and for the multijetID model
+git cms-checkout-topic -u CMS-L1T-Jet-Tagging:P2L1JetTagger_14_2_0_pre2-JetTaggerNN
+```
 
-# scripts
-git clone git@github.com:p2l1pfp/FastPUPPI.git -b 14_2_X
+## Jet tagging model setup
+Get hls4ml emulator extras needed for building the jet tagger emulator.
+```bash
+git clone https://github.com/cms-hls4ml/hls4mlEmulatorExtras.git 
+cd hls4mlEmulatorExtras 
+git checkout -b v1.1.3 tags/v1.1.3
+make install
+cd ..
+```
 
+Clone hls libraries for building jet tagger emulator
+```bash
+git clone --quiet https://github.com/Xilinx/HLS_arbitrary_Precision_Types.git hls
+```
+Clone jet tagger emulator and checkout specific branch link
+```bash
+git clone https://github.com/CMS-L1T-Jet-Tagging/hls4ml-jettagger.git
+cd hls4ml-jettagger
+git checkout hls4ml-jettaggerNN
+make install
+cd ..
+```
+And finally get FastPUPPI
+```bash
+git clone https://github.com:CMS-L1T-Jet-Tagging/FastPUPPI.git -b 14_2_X
 scram b -j8
 ```
+
+## The jet tagging model has been updated?
+
+From the `src` directory
+Add CMSSW fork so that changes can be pulled
+```bash
+git remote add jettag https://github.com/CMS-L1T-Jet-Tagging/cmssw.git
+```
+
+Pull changes from the CMSSW fork
+```bash
+git pull jettag P2L1JetTagger_14_2_0_pre2-JetTaggerNN
+```
+Update the model emulation
+```bash
+cd hls4ml-jettagger
+git pull
+```
+Remove old build files
+```bash
+make clean
+cd JetTaggerNN
+make clean
+cd ..
+```
+Rebuild
+```bash
+make install
+cd .. 
+```
+Rebuild CMSSW
+```bash
+scram b -j8
+```
+
 
 ## "Slim" input file creation
 

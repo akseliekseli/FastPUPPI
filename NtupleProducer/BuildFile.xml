@@ -12,6 +12,7 @@
 <use name="Geometry/Records"/>
 <use name="L1Trigger/L1THGCal"/>
 <use name="fastjet"/>
+<use name="DataFormats/HepMCCandidate"/>
 <export>
   <lib name="1"/>
 </export>

@@ -173,28 +173,6 @@ def makeEffHist(name, refArr, corrArr, corrThr, xmax, logxbins=None):
 
 from FastPUPPI.NtupleProducer.scripts.respPlots import whats as WHATS
 whats = WHATS + [
-    ('jetMassCut', [
-        ("SC8 No L1M cut", "SC8MassNoCut", ROOT.kAzure+10, 24, 0.5),
-        ("SC8 L1M > 10", "SC8Mass10Cut", ROOT.kGreen+1, 24, 0.5),
-        ("SC8 L1M > 20", "SC8Mass20Cut", ROOT.kBlue+1, 24, 0.5),
-        ("SC8 L1M > 30", "SC8Mass30Cut", ROOT.kOrange+7, 24, 0.5),
-        ("SC8 L1M > 40", "SC8Mass40Cut", ROOT.kRed+1, 24, 0.5),
-        ("SC8 L1M > 50", "SC8Mass50Cut", ROOT.kViolet+2, 24, 0.5),
-    ]),
-    ('sc8etasel', [
-        ("SC8 eta < 3",    "sc8PuppiEmuEtaSel",           ROOT.kGreen+1, 34, 1.2),
-        ("SC8",            "sc8PuppiEmu",                 ROOT.kBlue+1, 21, 1.5),
-        ("HSC8 9x9T",      "hsc8PuppiEmuDoubleBinSize",   ROOT.kViolet+2, 20, 1.5),
-        ("HSC8 17x17T",    "hsc8PuppiEmuTrimmed",         ROOT.kOrange+7, 24, 1.5),
-        # ("Wide Histo 9x9T", "wideHistoPuppiEmuDoubleBinSize", ROOT.kAzure+10, 21, 1.5),
-        # ("Wide Histo 17x17T", "wideHistoPuppiEmu", ROOT.kRed+1, 24, 1.5),
-    ]),
-    ('doubBinSize',[
-        ("AK8",     "ak8Puppi",           ROOT.kGreen+1, 34, 1.2),
-        ("SC8",            "sc8PuppiEmu",       ROOT.kBlue+1, 21, 1.5),
-        ("HSC8 9x9T",       "hsc8PuppiEmuDoubleBinSize",        ROOT.kViolet+2, 20, 1.5),
-        ("HSC8 17x17T",    "hsc8PuppiEmuTrimmed",          ROOT.kOrange+7, 24, 1.5),
-    ]),
     ('oldcomp',[
         ("Calo",      "L1OldCalo",        ROOT.kViolet+2, 20, 1.5),
         ("TK 5s",     "L1TKV5",           ROOT.kRed+1, 24, 1.5),
@@ -625,17 +603,12 @@ for plotkind in options.plots.split(","):
               if options.var.startswith("met") or obj.startswith("Ref") or ("Corr" in obj) or not isJetMet:
                   jecs = ROOT.nullptr
               else:
-                  if options.rawJets == False:
-                      jecdirname = obj+"Jets"+( "_"+options.jecMethod if options.jecMethod else "")
-                      jecdir = jecfile.GetDirectory(jecdirname)
-                      if not jecdir: 
-                          print("Missing JECs "+jecdirname+" in "+options.jecs)
-                          continue
-                      jecs = ROOT.l1tpf.corrector(jecdir)
-                  else:
-                      print("Not applying JECs")
-                      jecs = ROOT.nullptr
-              
+                  jecdirname = obj+"Jets"+( "_"+options.jecMethod if options.jecMethod else "")
+                  jecdir = jecfile.GetDirectory(jecdirname)
+                  if not jecdir: 
+                      print("Missing JECs "+jecdirname+" in "+options.jecs)
+                      continue
+                  jecs = ROOT.l1tpf.corrector(jecdir)
               label = name
               ptcut = options.pt
               if "RefTwoLayerJets" in obj: ptcut = 5

@@ -19,7 +19,7 @@ void FatJetMatching::flavorLabel(const l1t::PFJet* jet,
 
   processed_.clear();
   clearResult();
-
+  bool debug_print_genparts_table_ = false;
   if (debug_print_genparts_table_) {
     std::cout << "\n=======\nJet (energy, pT, eta, phi) = "
         << jet->energy() << ", " << jet->pt() << ", " << jet->eta() << ", " << jet->phi()
@@ -40,7 +40,11 @@ void FatJetMatching::flavorLabel(const l1t::PFJet* jet,
     processed_.insert(gp);
 
     auto pdgid = std::abs(gp->pdgId());
-    std::cout << "Matched particle ID: " << pdgid << std::endl;
+
+    if (pdgid == ParticleID::p_Wplus){
+      cout << "FOUND A W!!";
+    }
+
     if (pdgid == ParticleID::p_t){
       clearResult();
       top_label(jet, gp, genParticles, distR);
@@ -48,7 +52,7 @@ void FatJetMatching::flavorLabel(const l1t::PFJet* jet,
         return;
       }
     }else if (pdgid == ParticleID::p_H0 || pdgid == ParticleID::p_Hplus || pdgid == ParticleID::p_Hbsm || pdgid == ParticleID::p_LQbsm || (!found_reslike_higgs && pdgid == ParticleID::p_h0)){
-      //found_higgs = true;
+      found_higgs = true;
       if (pdgid != ParticleID::p_h0){
         found_reslike_higgs = true;
       }
@@ -72,7 +76,7 @@ void FatJetMatching::flavorLabel(const l1t::PFJet* jet,
     // special W/Z labels for non-MD tagger
     else if (!isMDTagger && pdgid == ParticleID::p_Wplus){
       clearResult();
-      w_label(jet, gp, distR, /*is_from_top=*/false);
+      w_label(jet, gp, distR, /*is_from_top=*/true);
       if (getResult().label != "Invalid"){
         return;
       }

@@ -375,13 +375,7 @@ class JetNTuplizer : public edm::one::EDAnalyzer<edm::one::SharedResources,edm::
     std::vector<float> jet_pfcand_cluster_egvspu;
 
     // Fat Jet labels
-    std::vector<int> fj_isTop;
-    std::vector<int> fj_isW;
-    std::vector<int> fj_isZ;
-    std::vector<int> fj_isH2p;
-    std::vector<int> fj_isHWW;
-    std::vector<int> fj_isHZZ;
-    std::vector<int> fj_isQCD;
+    std::vector<string> fj_label;
 };
 
 JetNTuplizer::JetNTuplizer(const edm::ParameterSet& iConfig) :
@@ -544,13 +538,7 @@ JetNTuplizer::JetNTuplizer(const edm::ParameterSet& iConfig) :
 
     
     // fat jet branches
-    tree_->Branch("fj_isTop", &fj_isTop);
-    tree_->Branch("fj_isW", &fj_isW);
-    tree_->Branch("fj_isZ", &fj_isZ);
-    tree_->Branch("fj_isH2p", &fj_isH2p);
-    tree_->Branch("fj_isHWW", &fj_isHWW);
-    tree_->Branch("fj_isHZZ", &fj_isHZZ);
-    tree_->Branch("fj_isQCD", &fj_isQCD);
+    tree_->Branch("fj_label", &fj_label);
 
 
     // -------------------------------------
@@ -729,14 +717,8 @@ JetNTuplizer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
         muonv_l1.push_back(mref);                                                                                                                                                              
     }
     sort(muonv_l1.begin(), muonv_l1.end(), muonRefSorter);
-
-    fj_isW.clear();
-    fj_isTop.clear();
-    fj_isZ.clear();
-    fj_isH2p.clear();
-    fj_isHWW.clear();
-    fj_isHZZ.clear();
-    fj_isQCD.clear();
+    // fat jet label clearing
+    fj_label.clear();
     // loop over reco jets
     for (size_t i = 0; i < jetv_l1.size(); i++) {
         
@@ -1042,23 +1024,7 @@ JetNTuplizer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
             return;
           }
         }
-        fj_isW.push_back((fjlabel.rfind("W_", 0) == 0) ? 1 : 0);
-        fj_isTop.push_back((fjlabel.rfind("Top_", 0) == 0) ? 1 : 0);
-        fj_isZ.push_back((fjlabel.rfind("Z_", 0) == 0) ? 1 : 0);
-        fj_isH2p.push_back((fjlabel.rfind("H_", 0) == 0
-                            && fjlabel.rfind("H_WW_", 0) != 0
-                            && fjlabel.rfind("H_WxWx_", 0) != 0
-                            && fjlabel.rfind("H_WxWxStar_", 0) != 0
-                            && fjlabel.rfind("H_ZZ_", 0) != 0
-                            && fjlabel.rfind("H_ZxZx_", 0) != 0
-                            && fjlabel.rfind("H_ZxZxStar_", 0) != 0) ? 1 : 0);
-        fj_isHWW.push_back((fjlabel.rfind("H_WW_", 0) == 0
-                            || fjlabel.rfind("H_WxWx_", 0) == 0
-                            || fjlabel.rfind("H_WxWxStar_", 0) == 0) ? 1 : 0);
-        fj_isHZZ.push_back((fjlabel.rfind("H_ZZ_", 0) == 0
-                            || fjlabel.rfind("H_ZxZx_", 0) == 0
-                            || fjlabel.rfind("H_ZxZxStar_", 0) == 0) ? 1 : 0);
-        fj_isQCD.push_back((fjlabel.rfind("QCD_", 0) == 0) ? 1 : 0);
+        fj_label.push_back(fjlabel);
 
         // FAT JET LABELS END
     

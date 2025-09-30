@@ -41,10 +41,6 @@ void FatJetMatching::flavorLabel(const l1t::PFJet* jet,
 
     auto pdgid = std::abs(gp->pdgId());
 
-    if (pdgid == ParticleID::p_Wplus){
-      cout << "FOUND A W!!";
-    }
-
     if (pdgid == ParticleID::p_t){
       clearResult();
       top_label(jet, gp, genParticles, distR);
@@ -76,7 +72,7 @@ void FatJetMatching::flavorLabel(const l1t::PFJet* jet,
     // special W/Z labels for non-MD tagger
     else if (!isMDTagger && pdgid == ParticleID::p_Wplus){
       clearResult();
-      w_label(jet, gp, distR, /*is_from_top=*/true);
+      w_label(jet, gp, distR, /*is_from_top=*/false);
       if (getResult().label != "Invalid"){
         return;
       }
@@ -503,6 +499,7 @@ void FatJetMatching::w_label(const l1t::PFJet* jet, const reco::GenParticle *par
   else if (wdecay == W_tauhv){
     getResult().particles.insert(getResult().particles.end(), tau_daus.begin(), tau_daus.end());
   }
+
 }
 
 void FatJetMatching::z_label(const l1t::PFJet* jet, const reco::GenParticle *parton, double distR)
@@ -1353,8 +1350,8 @@ void FatJetMatching::qcd_label(const l1t::PFJet* jet, const reco::GenParticleCol
     }
   }
 
-  //auto n_bHadrons = jet->jetFlavourInfo().getbHadrons().size();
-  //auto n_cHadrons = jet->jetFlavourInfo().getcHadrons().size();
+  //auto n_bHadrons = jet->jetPFJetFlavourInfo().getbHadrons().size();
+  //auto n_cHadrons = jet->jetPFJetFlavourInfo().getcHadrons().size();
   auto n_bHadrons = 0;
   auto n_cHadrons = 0;
 

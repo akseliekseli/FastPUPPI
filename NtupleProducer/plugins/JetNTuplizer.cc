@@ -645,6 +645,45 @@ JetNTuplizer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
         sort(jetv_gen.begin(), jetv_gen.end(), genJetRefSorter);
     }
 
+    // Get truth boson info for wide cone jets
+    // loop over gen jets
+    
+    std::vector<int> genPdg(jetv_gen.size()), nProngs(jetv_gen.size());
+    std::vector<float> bosonPts(jetv_gen.size()), bosonMasses(jetv_gen.size());
+    int idx = 0;
+    for(const reco::GenJetRef& genJet : jetv_gen){
+        std::set<const reco::GenParticle*> prongs;
+        int bosonId = 0;
+        float bosonPt = 0.0;
+        float bosonMass = 0.0;
+        const std::vector<const reco::GenParticle*> constituents = genJet->getGenConstituents();
+        for(const reco::GenParticle* constit : constituents){
+            const reco::GenParticle* current = constit;
+            while (current->numberOfMothers() > 0) {
+                const reco::GenParticle* mother = dynamic_cast<const reco::GenParticle*>(current->mother(0));    // get the mother immediately above
+                if (!mother) break;
+                int id = std::abs(mother->pdgId());
+                if(mother->isLastCopy() && (id == 24 || id == 25 || id == 23)) { // W, H, Z
+                    //if(id == 24){std::cout << "Found W boson! pT = " << mother->pt() << " and mass = " << mother->mass() << std::endl;}
+                    if(mother->pt() >= bosonPt){    // assume highest pt mother is the boson
+                        bosonPt = mother->pt();
+                        bosonMass = mother->mass();
+                        bosonId = mother->pdgId();
+                        prongs.insert(current);    // set so dont need to check if already in set
+                    }
+                    break;
+                }
+                current = mother;
+            }
+        }
+        genPdg.at(idx) = bosonId;
+        nProngs.at(idx) = prongs.size();
+        bosonPts.at(idx) = bosonPt;
+        bosonMasses.at(idx) = bosonMass;
+        idx += 1;
+    }
+
+
     // reco jets
     std::vector<l1t::PFJetRef> jetv_l1;
     for (auto jets_iter = scjets->begin(); jets_iter != scjets->end(); ++jets_iter) {                                                                                                   
@@ -691,7 +730,13 @@ JetNTuplizer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
     }
     sort(muonv_l1.begin(), muonv_l1.end(), muonRefSorter);
 
-
+    fj_isW.clear();
+    fj_isTop.clear();
+    fj_isZ.clear();
+    fj_isH2p.clear();
+    fj_isHWW.clear();
+    fj_isHZZ.clear();
+    fj_isQCD.clear();
     // loop over reco jets
     for (size_t i = 0; i < jetv_l1.size(); i++) {
         
@@ -997,8 +1042,8 @@ JetNTuplizer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
             return;
           }
         }
-        fj_isTop.push_back((fjlabel.rfind("Top_", 0) == 0) ? 1 : 0);
         fj_isW.push_back((fjlabel.rfind("W_", 0) == 0) ? 1 : 0);
+        fj_isTop.push_back((fjlabel.rfind("Top_", 0) == 0) ? 1 : 0);
         fj_isZ.push_back((fjlabel.rfind("Z_", 0) == 0) ? 1 : 0);
         fj_isH2p.push_back((fjlabel.rfind("H_", 0) == 0
                             && fjlabel.rfind("H_WW_", 0) != 0

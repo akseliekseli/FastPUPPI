@@ -32,7 +32,7 @@ void FatJetMatching::flavorLabel(const l1t::PFJet* jet,
 
   bool found_higgs = false;
   bool found_reslike_higgs = false;
-  bool isMDTagger = false;
+  bool isMDTagger = true;
   for (unsigned ipart = 0; ipart<genParticles.size(); ++ipart){
     const auto *gp = &genParticles[ipart];
 

@@ -92,25 +92,13 @@ process.extraPFStuff = cms.Task(
     process.L1TLayer2EGTask,
 )
 
-
-def addJetNTuple(trktype="extended"):
-    # create new jet tupler
-    jetColl = "l1tSC4PFL1PuppiExtendedEmulator"
-    jetCollCorr = "l1tSC4PFL1PuppiExtendedEmulator"
-    if trktype == "baseline":
-        jetColl = "l1tSC4PFL1PuppiEmulator"
-        jetCollCorr = "l1tSC4PFL1PuppiCorrectedEmulator"
-
-    # >>> Override with SC8 jets
-    jetColl = "l1tSC8PFL1PuppiEmulator"
-    jetCollCorr = "l1tSC8PFL1PuppiCorrectedEmulator"
-
+def addJetNTuple(trktype="extended", isTrainSample=True, isQCDSample=False, debug=False):
     process.outnano = cms.EDAnalyzer(
         "JetNTuplizer",
         genJets=cms.InputTag("ak8GenJetsNoNu"),
         genParticles=cms.InputTag("genParticles"),
-        scPuppiJets=cms.InputTag(jetColl),
-        scPuppiJetsCorr=cms.InputTag(jetCollCorr),
+        scPuppiJets=cms.InputTag("l1tSC8PFL1PuppiEmulator"),
+        scPuppiJetsCorr=cms.InputTag("l1tSC8PFL1PuppiCorrectedEmulator"),
         nnTaus=cms.InputTag("l1tNNTauProducerPuppi", "L1PFTausNN"),
         genJetsFlavour=cms.InputTag("genFlavourInfo"),
         vtx=cms.InputTag("l1tVertexFinderEmulator", "L1VerticesEmulation"),
@@ -120,10 +108,39 @@ def addJetNTuple(trktype="extended"):
         bjetIDs=cms.InputTag("l1tBJetProducerPuppiCorrectedEmulator", "L1PFBJets"),
         electrons=cms.InputTag("l1tLayer2EG", "L1CtTkElectron"),
         muons=cms.InputTag("l1tSAMuonsGmt", "promptSAMuons"),
-        jetR = cms.double(0.8),
+        # jet-collection-level params, SC8 defaults here, overridden for SC4 below
+        jetR=cms.double(0.8),
+        dRJetGenMatch=cms.double(0.8),
+        isHVV2DVarMassSample=cms.bool(False),
+        # sample-level flags, set once, inherited by both clones
+        isTrainSample=cms.bool(isTrainSample),
+        isQCDSample=cms.bool(isQCDSample),
+        debug=cms.bool(debug),
+        adhocFixMode=cms.int32(0),
     )
-    process.endTuple = cms.EndPath(process.outnano)
-    # outName = "jetTuple_"+trktype+"_"+str(nparam)+".root"
+
+    # SC8 clone (same as base, but explicit for clarity)
+    process.outnanoSC8 = process.outnano.clone(
+        scPuppiJets=cms.InputTag("l1tSC8PFL1PuppiEmulator"),
+        scPuppiJetsCorr=cms.InputTag("l1tSC8PFL1PuppiCorrectedEmulator"),
+        jetR=cms.double(0.8),
+        dRJetGenMatch=cms.double(0.8),
+    )
+
+    # SC4 clone: only jet-collection-specific params differ
+    process.outnanoSC4 = process.outnano.clone(
+        scPuppiJets=cms.InputTag("l1tSC4PFL1PuppiEmulator"),
+        scPuppiJetsCorr=cms.InputTag("l1tSC4PFL1PuppiCorrectedEmulator"),
+        jetR=cms.double(0.4),
+        dRJetGenMatch=cms.double(0.4),
+        isHVV2DVarMassSample=cms.bool(False),  # force off for SC4 regardless of sample
+    )
+
+    # drop the original single "outnano" — replace with both clones on the EndPath
+    del process.outnano
+
+    process.endTuple = cms.EndPath(process.outnanoSC4 + process.outnanoSC8)
+
     outName = "jetTuple_" + trktype + ".root"
     process.TFileService = cms.Service("TFileService", fileName=cms.string(outName))
 
@@ -197,12 +214,15 @@ if True:
     process.source.fileNames = cms.untracked.vstring("file:{}".format(inputFile))
     goMT(4)
     trktype = "extended"
-    # nparam = 5
     addSeededConeJets()
     addMultitagging(trktype=trktype)
     addBtagging()
     addNNPuppiTaus()
     addGenJetFlavourTable()
-    addJetNTuple(trktype=trktype)
+
+    is_qcd = "QCD" in inputFile
+    addJetNTuple(trktype=trktype, isTrainSample=True, isQCDSample=is_qcd, debug=False)
+
     if False:
-        open("debug_dump_runJetNTuple.py", "w").write(process.dumpPython())
+        open("debug_dump_runJetNTupleSC8AndSC4.py", "w").write(process.dumpPython())
+

@@ -12,8 +12,8 @@ process.options   = cms.untracked.PSet( wantSummary = cms.untracked.bool(False),
 process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(-1))
 process.MessageLogger.cerr.FwkReport.reportEvery = 1
 # inputMC = ['file:/eos/cms/store/group/phys_exotica/L1P2AD/CRAB_PrivateMC/SVJ_mMed_500_SLIMMED_TPs/251117_081934/0000/inputs140X_1.root']
-# inputMC = ['file:/eos/cms/store/cmst3/group/l1tr/FastPUPPI/15_1_X/fpinputs_151X/v1/GluGluHHTo2B2Tau_PU200/inputs151X_1-1.root']
-inputMC = ['file:/afs/cern.ch/work/s/sewuchte/private/L1T/Clean17/CMSSW_17_0_0_pre2/src/FastPUPPI/NtupleProducer/python/inputs151X.root']
+inputMC = ['file:/eos/cms/store/cmst3/group/l1tr/FastPUPPI/15_1_X/fpinputs_151X/v1/GluGluHHTo2B2Tau_PU200/inputs151X_1-1.root']
+# inputMC = ['file:/afs/cern.ch/work/s/sewuchte/private/L1T/Clean17/CMSSW_17_0_0_pre2/src/FastPUPPI/NtupleProducer/python/inputs151X.root']
 process.source = cms.Source("PoolSource",
     fileNames = cms.untracked.vstring(*inputMC),
     inputCommands = cms.untracked.vstring("keep *", 
@@ -274,12 +274,70 @@ def addOfflineBTagging():
     process.p.associate(process.pfParticleNetFromMiniAODAK4PuppiTask)
     process.p.associate(process.slimmedJetsUpdatedTask)
 
+def addSC8JetNTuple(trktype="extended"):
+    # Build SC8 jets from the same PUPPI collection used by the SC4 workflow.
+    if trktype == "extended":
+        process.l1tSC8PFL1PuppiExtendedEmulator = (
+            process.l1tSC4PFL1PuppiExtendedEmulator.clone(
+                coneSize=cms.double(0.8),
+                wideConeJet=cms.bool(True),
+            )
+        )
+        sc8JetCollection = "l1tSC8PFL1PuppiExtendedEmulator"
+        process.extraPFStuff.add(
+            process.l1tSC8PFL1PuppiExtendedEmulator
+        )
+    else:
+        sc8JetCollection = "l1tSC8PFL1PuppiEmulator"
+
+    # Evaluate the existing SC4 NGJet model on the SC8 jets.
+    # The producer's output instance name is fixed as "l1tSC4NGJets".
+    process.l1tSC8NGJetProducer = process.l1tSC4NGJetProducer.clone(
+        jets=cms.InputTag(sc8JetCollection),
+        returnRawPt=cms.bool(True),
+        maxJets=cms.int32(999),
+    )
+    process.extraPFStuff.add(process.l1tSC8NGJetProducer)
+
+    # The JetNTuplizer expects a b-tag ValueMap keyed to the exact jet
+    # collection it reads, so SC8 needs its own instance.
+    process.l1tBJetProducerSC8 = (
+        process.l1tBJetProducerPuppiCorrectedEmulator.clone(
+            jets=cms.InputTag(
+                "l1tSC8NGJetProducer",
+                "l1tSC4NGJets",
+            ),
+            maxJets=cms.int32(500),
+            useRawPt=cms.bool(True),
+        )
+    )
+    process.extraPFStuff.add(process.l1tBJetProducerSC8)
+
+    # Clone the validated SC4 analyzer configuration, changing only
+    # the jet collections and corresponding b-tag ValueMap.
+    process.outnanoSC8 = process.outnano.clone(
+        scPuppiJets=cms.InputTag(
+            "l1tSC8NGJetProducer",
+            "l1tSC4NGJets",
+        ),
+        scPuppiJetsCorr=cms.InputTag(
+            "l1tSC8PFL1PuppiCorrectedEmulator"
+        ),
+        bjetIDs=cms.InputTag(
+            "l1tBJetProducerSC8",
+            "L1PFBJets",
+        ),
+    )
+
+    process.endTuple += process.outnanoSC8
+
+
 if True:
     process.source.fileNames  = cms.untracked.vstring(*inputMC)
     goMT()
     trktype = "extended"
     nparam = 5
-    offline = True
+    offline = False
     addSeededConeJets()
     addMultitagging(trktype = trktype)
     addBtagging(("l1tSC4NGJetProducer","l1tSC4NGJets"))
@@ -288,5 +346,6 @@ if True:
     if offline:
         addOfflineBTagging()
     addJetNTuple(trktype = trktype, nparam = nparam, offline = offline)
+    addSC8JetNTuple(trktype=trktype)
     if False:
         open("debug_dump_runJetNTuple.py", "w").write(process.dumpPython())

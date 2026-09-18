@@ -113,6 +113,10 @@ def addJetNTuple(trktype = "extended", nparam = 5, tagged = True, offline = True
         offlineJets = cms.InputTag("slimmedJetsPuppi"),
         offlinePVs = cms.InputTag("offlineSlimmedPrimaryVertices"),
         doOfflineInfo = cms.bool(offline),
+        # Do not write large-radius labels for the SC4 tree.
+        writeJetLabel=cms.bool(False),
+        jetLabelRadius=cms.double(0.4),
+        jetLabelBranch=cms.string("sc4_label"),
     )
 
     if hasattr(process, "slimmedJetsUpdated"):
@@ -327,6 +331,10 @@ def addSC8JetNTuple(trktype="extended"):
             "l1tBJetProducerSC8",
             "L1PFBJets",
         ),
+    
+        writeJetLabel=cms.bool(True),
+        jetLabelRadius=cms.double(0.8),
+        jetLabelBranch=cms.string("sc8_label"),
     )
 
     process.endTuple += process.outnanoSC8

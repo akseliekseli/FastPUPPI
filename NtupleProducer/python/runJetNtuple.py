@@ -331,6 +331,12 @@ def addSC8JetNTuple(trktype="extended"):
             "l1tBJetProducerSC8",
             "L1PFBJets",
         ),
+        labelBHadrons=cms.InputTag(
+            "selectedHadronsAndPartons", "bHadrons"
+        ),
+        labelCHadrons=cms.InputTag(
+            "selectedHadronsAndPartons", "cHadrons"
+        ),
     
         writeJetLabel=cms.bool(True),
         jetLabelRadius=cms.double(0.8),

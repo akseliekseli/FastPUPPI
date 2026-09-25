@@ -80,6 +80,9 @@
 
 #include "Compression.h"
 
+#include "DataFormats/HepMCCandidate/interface/GenParticleFwd.h"
+#include "FWCore/Utilities/interface/Exception.h"
+
 #include "../interface/FatJetMatching.h"
 
 // some tools to fix inputs or calculate them
@@ -206,6 +209,11 @@ private:
   std::string jetLabelBranch_;
 
   std::vector<std::string> jet_label_;
+  edm::EDGetTokenT<reco::GenParticleRefVector> labelBHadronsToken_;
+  edm::EDGetTokenT<reco::GenParticleRefVector> labelCHadronsToken_;
+
+  int jet_nBHadrons_ = -1;
+  int jet_nCHadrons_ = -1;
 
   // --------------------
   std::vector<reco::GenParticle> gToBB_;
@@ -563,7 +571,25 @@ JetNTuplizer::JetNTuplizer(const edm::ParameterSet& iConfig)
   tree_->Branch("jet_pt_corr", &jet_pt_corr_);
 
   if (writeJetLabel_) {
+    labelBHadronsToken_ = consumes<reco::GenParticleRefVector>(iConfig.getParameter<edm::InputTag>("labelBHadrons"));
+
+    labelCHadronsToken_ = consumes<reco::GenParticleRefVector>(iConfig.getParameter<edm::InputTag>("labelCHadrons"));
+
     tree_->Branch(jetLabelBranch_.c_str(), &jet_label_);
+
+    // Convert sc8_label into the prefix sc8.
+    std::string prefix = jetLabelBranch_;
+    const std::string suffix = "_label";
+
+    if (prefix.size() >= suffix.size() && prefix.compare(prefix.size() - suffix.size(), suffix.size(), suffix) == 0) {
+      prefix.resize(prefix.size() - suffix.size());
+    }
+
+    const std::string bName = prefix + "_nBHadrons";
+    const std::string cName = prefix + "_nCHadrons";
+
+    tree_->Branch(bName.c_str(), &jet_nBHadrons_, (bName + "/I").c_str());
+    tree_->Branch(cName.c_str(), &jet_nCHadrons_, (cName + "/I").c_str());
   }
 
   if (doOfflineInfo_) {
@@ -769,6 +795,9 @@ void JetNTuplizer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSet
   edm::Handle<std::vector<pat::Jet>> offlineJets;
   edm::Handle<std::vector<reco::Vertex>> offlinePVs;
 
+  edm::Handle<reco::GenParticleRefVector> labelBHadrons;
+  edm::Handle<reco::GenParticleRefVector> labelCHadrons;
+
   edm::Handle<reco::JetFlavourInfoMatchingCollection> genJetsFlavour;
 
   if (iEvent.isRealData()) {
@@ -792,6 +821,15 @@ void JetNTuplizer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSet
     fill_genParticles(iEvent);
 
     iEvent.getByToken(genJetsFlavour_, genJetsFlavour);
+  }
+  if (isMC_ && writeJetLabel_) {
+    iEvent.getByToken(labelBHadronsToken_, labelBHadrons);
+    iEvent.getByToken(labelCHadronsToken_, labelCHadrons);
+
+    if (!genparticles.isValid() || !labelBHadrons.isValid() || !labelCHadrons.isValid()) {
+      throw cms::Exception("ProductNotFound") << "Jet labels require genParticles and selected "
+                                              << "bHadrons/cHadrons collections.";
+    }
   }
   iEvent.getByToken(scjets_, scjets);
   iEvent.getByToken(scjetsCorr_, scjetsCorr);
@@ -903,9 +941,7 @@ void JetNTuplizer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSet
     sort(jetv_offline.begin(), jetv_offline.end(), offlineJetRefSorter);
   }
 
-  jet_label_.clear();
   // loop over reco jets
-
   for (size_t i = 0; i < jetv_l1.size(); i++) {
     l1ct::Jet ctJet = l1ct::Jet::unpack(jetv_l1[i]->getHWJetCT());
     std::vector<float> tagScores = jetv_l1[i]->getTagScores();
@@ -931,15 +967,42 @@ void JetNTuplizer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSet
     }
     const l1t::PFJet* l1Jet = jetv_l1[i].get();
 
-    if (writeJetLabel_) {
-      if (isMC_ && genparticles.isValid()) {
-        deepntuples::FatJetMatching matcher(jetLabelRadius_, true);
+    // This tree is filled once per jet.
+    // Keep only this jet's label in the existing vector branch.
+    jet_label_.clear();
+    jet_nBHadrons_ = -1;
+    jet_nCHadrons_ = -1;
 
-        matcher.flavorLabel(l1Jet, *genparticles, jetLabelRadius_);
+    if (writeJetLabel_) {
+      if (isMC_) {
+        const auto countInCone = [&](const reco::GenParticleRefVector& hadrons) {
+          unsigned int count = 0;
+
+          for (const auto& hadron : hadrons) {
+            if (hadron.isNull() || !hadron.isAvailable()) {
+              throw cms::Exception("InvalidReference") << "Unavailable selected heavy-hadron reference.";
+            }
+
+            if (reco::deltaR(hadron->p4(), l1Jet->p4()) < jetLabelRadius_) {
+              ++count;
+            }
+          }
+
+          return count;
+        };
+
+        // Each jet is evaluated independently.
+        const unsigned int nB = countInCone(*labelBHadrons);
+        const unsigned int nC = countInCone(*labelCHadrons);
+
+        jet_nBHadrons_ = static_cast<int>(nB);
+        jet_nCHadrons_ = static_cast<int>(nC);
+
+        deepntuples::FatJetMatching matcher(jetLabelRadius_, true);
+        matcher.flavorLabel(l1Jet, *genparticles, jetLabelRadius_, nB, nC);
 
         jet_label_.push_back(matcher.getResult().label);
       } else {
-        // Preserve one label entry for every jet, even for data.
         jet_label_.push_back("Data");
       }
     }
